@@ -1,0 +1,94 @@
+# ============================================================
+# METRIC DRIFT DETECTOR — Cortex Code Skill Definition
+# Cambria Commercial Analytics
+# ============================================================
+
+name: metric_drift_detector
+version: "2.0.0"
+description: >
+  Compares two fully dynamic rolling time windows across Cambria's
+  SLAB_SALES_SHIPMENTS and FABRICATED_SALES_SHIPMENTS source tables,
+  grouping by Sales Region. Tracks Ordered and Shipped volume with
+  Commercial/Residential breakdowns. Flags drift as CRITICAL / WARNING /
+  STABLE. No hardcoded dates — all windows computed at runtime from CURRENT_DATE.
+
+# ── Source Objects ────────────────────────────────────────────
+sources:
+  slabs:
+    database: PROD_VIEWS_SALES
+    schema:   SALES_WITH_DOLLARS
+    table:    SLAB_SALES_SHIPMENTS
+    accounts: PROD_VIEWS_SALES.SALESFORCE.ACCOUNTS_NIGHTLY
+    entrypoint: metric_drift_slabs.sql
+
+  fab:
+    database: PROD_VIEWS_SALES
+    schema:   SALES_WITH_DOLLARS
+    table:    FABRICATED_SALES_SHIPMENTS
+    accounts: PROD_VIEWS_SALES.SALESFORCE.ACCOUNTS_NIGHTLY
+    entrypoint: metric_drift_fab.sql
+
+# ── Parameters ────────────────────────────────────────────────
+parameters:
+  - name: view_name
+    type: string
+    description: "Which product line to analyze"
+    default: "SLABS"
+    allowed_values:
+      - SLABS
+      - FAB
+
+# ── How Dates Work ────────────────────────────────────────────
+# All dates are dynamic — computed inside date_params CTE using CURRENT_DATE.
+# Default cadence is Week-over-Week (WoW).
+# To change: edit date_params CTE in the relevant SQL file only.
+#
+# Default (WoW):
+#   current: CURRENT_DATE-7  → CURRENT_DATE-1
+#   prior:   CURRENT_DATE-14 → CURRENT_DATE-8
+
+# ── Example Invocations ───────────────────────────────────────
+examples:
+  - description: "WoW Slabs drift by region"
+    command: cortex run metric_drift_detector --view SLABS
+
+  - description: "WoW Fab drift by region"
+    command: cortex run metric_drift_detector --view FAB
+
+# ── Snowflake Task (Automated Daily Run) ──────────────────────
+#
+# CREATE OR REPLACE TASK cambria_metric_drift_slabs_daily
+#   WAREHOUSE = COMPUTE_WH
+#   SCHEDULE  = 'USING CRON 0 6 * * 1-5 America/Chicago'
+# AS
+# EXECUTE IMMEDIATE $$
+#   -- paste metric_drift_slabs.sql contents here
+# $$;
+#
+# CREATE OR REPLACE TASK cambria_metric_drift_fab_daily
+#   WAREHOUSE = COMPUTE_WH
+#   SCHEDULE  = 'USING CRON 0 6 * * 1-5 America/Chicago'
+# AS
+# EXECUTE IMMEDIATE $$
+#   -- paste metric_drift_fab.sql contents here
+# $$;
+#
+# ALTER TASK cambria_metric_drift_slabs_daily RESUME;
+# ALTER TASK cambria_metric_drift_fab_daily   RESUME;
+
+# ── Alert on CRITICAL Results ─────────────────────────────────
+# CREATE OR REPLACE ALERT cambria_drift_critical_alert
+#   WAREHOUSE = COMPUTE_WH
+#   SCHEDULE  = 'USING CRON 0 7 * * 1-5 America/Chicago'
+#   IF (EXISTS (
+#     SELECT 1 FROM CAMBRIA_DB.GOLD.DRIFT_LOG
+#     WHERE "Overall Severity" = '🔴 CRITICAL'
+#     AND   run_date = CURRENT_DATE
+#   ))
+#   THEN
+#     CALL SYSTEM$SEND_EMAIL(
+#       'cambria-data-alerts',
+#       'rakesh@cambria.com',
+#       'Metric Drift Alert — CRITICAL',
+#       'One or more regions have drifted critically. Review Sigma dashboard.'
+#     );
