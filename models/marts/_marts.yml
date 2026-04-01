@@ -17,3 +17,27 @@ models:
         description: True when drift_severity is not normal.
         tests:
           - not_null
+
+  - name: fct_drift_alerts
+    description: >
+      Drift events only (severity != normal), enriched with day-over-day
+      change and consecutive alert context.
+    columns:
+      - name: metric_date
+        tests:
+          - not_null
+      - name: drift_severity
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['critical', 'warning', 'watch']
+
+  - name: fct_drift_insights
+    description: >
+      AI-generated plain-English explanations of each drift alert,
+      powered by Snowflake Cortex COMPLETE.
+    columns:
+      - name: ai_insight
+        description: LLM-generated explanation of the drift event.
+        tests:
+          - not_null
