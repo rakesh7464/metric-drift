@@ -1,0 +1,56 @@
+name: dbt CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-build:
+    runs-on: ubuntu-latest
+
+    env:
+      SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Set up dbt profile
+        run: |
+          mkdir -p ~/.dbt
+          cat <<'EOF' > ~/.dbt/profiles.yml
+          metric_drift:
+            target: ci
+            outputs:
+              ci:
+                type: snowflake
+                account: parwfuh-btb55676
+                user: rakpatel
+                password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+                role: ACCOUNTADMIN
+                database: METRIC_DRIFT
+                warehouse: COMPUTE_WH
+                schema: CI
+                threads: 4
+          EOF
+
+      - name: dbt debug
+        run: dbt debug
+
+      - name: dbt seed
+        run: dbt seed
+
+      - name: dbt run
+        run: dbt run
+
+      - name: dbt test
+        run: dbt test
