@@ -1,133 +1,66 @@
-# 📊 Metric Drift Detector v2.0
-**Cambria Commercial Analytics | Cortex Code Skill**
+# metric-drift
 
----
+dbt project that detects when business metrics drift from expected ranges using z-score analysis on rolling windows.
 
-## What It Does
+## How it works
 
-Compares two rolling time windows across Cambria's slab and fabricated shipment data, grouped by Sales Region. Flags Ordered and Shipped volume drift (Total + Commercial + Residential) as CRITICAL / WARNING / STABLE — surfacing pipeline issues or business shifts **before** they reach Sigma dashboards or executive reports.
+Synthetic daily metrics flow through three dbt layers:
 
----
+1. **Staging** — cleans raw seed data, adds `is_weekend` flag
+2. **Intermediate** — computes 14-day rolling average, stddev, and z-score per metric
+3. **Marts** — classifies drift severity and flags alerts
 
-## Source Objects
+### Severity thresholds
 
-| File | Source Table | Join | Group By |
-|---|---|---|---|
-| `metric_drift_slabs.sql` | `PROD_VIEWS_SALES.SALES_WITH_DOLLARS.SLAB_SALES_SHIPMENTS` | `ACCOUNTS_NIGHTLY` via `SFAccountID` | `SFAccountRegionName` |
-| `metric_drift_fab.sql` | `PROD_VIEWS_SALES.SALES_WITH_DOLLARS.FABRICATED_SALES_SHIPMENTS` | `ACCOUNTS_NIGHTLY` via `PurchasingAccountID` | `SF Account Sales Region Name` |
+| Severity | Z-score |
+|----------|---------|
+| critical | \|z\| >= 3.0 |
+| warning  | \|z\| >= 2.0 |
+| watch    | \|z\| >= 1.5 |
+| normal   | \|z\| < 1.5 |
 
-Both files use `PROD_VIEWS_SALES.SALESFORCE.ACCOUNTS_NIGHTLY` to resolve Commercial/Residential classification — exactly matching the logic in `volume_report_daily_materialized`.
+## Example output
 
----
+Running against the included seed data (90 days, 3 metrics), the mart produces **6 drift alerts**:
 
-## Metrics Tracked
+| metric | day | value | 14d avg | z-score | severity |
+|--------|-----|-------|---------|---------|----------|
+| revenue | 31 | 32,400 | 51,386 | -2.95 | critical |
+| revenue | 45 | 61,500 | 53,250 | 2.25 | warning |
+| active_users | 31 | 7,200 | 12,221 | -2.75 | critical |
+| active_users | 45 | 15,200 | 12,736 | 2.18 | warning |
+| conversion_rate | 31 | 0.018 | 0.034 | -2.62 | critical |
+| conversion_rate | 45 | 0.042 | 0.035 | 2.10 | warning |
 
-| Metric | Slabs | Fab |
-|---|---|---|
-| Total Ordered | Slabs Ordered | SQFT Ordered |
-| Commercial Ordered | ✅ | ✅ |
-| Residential Ordered | ✅ | ✅ |
-| Total Shipped | Slabs Shipped | SQFT Shipped |
-| Commercial Shipped | ✅ | ✅ |
-| Residential Shipped | ✅ | ✅ |
+Day 31 has an intentional dip across all metrics; day 45 has a spike.
 
----
+## Tech stack
 
-## Severity Labels
+- dbt-core 1.11 + dbt-snowflake
+- Snowflake
+- Python 3.12
 
-| Label | Default Trigger |
-|---|---|
-| 🔴 CRITICAL | ≥ 30% drift on any metric |
-| 🟡 WARNING | ≥ 15% drift on any metric |
-| 🟢 STABLE | < 15% on all metrics |
+## Quick setup
 
-Overall row severity is driven by the **worst single metric** on that row.
-
----
-
-## How Dynamic Dates Work
-
-All windows are computed in the `date_params` CTE at the top of each file:
-
-```sql
-date_params AS (
-    SELECT
-        DATEADD(day, -7,  CURRENT_DATE)::DATE   AS current_start,  -- WoW default
-        DATEADD(day, -1,  CURRENT_DATE)::DATE   AS current_end,
-        DATEADD(day, -14, CURRENT_DATE)::DATE   AS prior_start,
-        DATEADD(day, -8,  CURRENT_DATE)::DATE   AS prior_end,
-        15  AS threshold_pct,
-        30  AS critical_pct
-)
-```
-
-To switch cadence, edit **only `date_params`**. Commented alternatives for MTD and rolling 30-day are already in each file.
-
----
-
-## Files
-
-```
-metric_drift_detector/
-├── skill.yaml                  # Cortex Code skill definition
-├── metric_drift_slabs.sql      # Slabs drift — SFAccountRegionName
-├── metric_drift_fab.sql        # Fab drift — SF Account Sales Region Name
-└── README.md
-```
-
----
-
-## Usage
-
-### Cortex Code CLI
 ```bash
-cortex run metric_drift_detector --view SLABS
-cortex run metric_drift_detector --view FAB
+python -m venv .venv && source .venv/bin/activate
+pip install dbt-core dbt-snowflake
+
+# configure ~/.dbt/profiles.yml with your Snowflake credentials
+# profile name: metric_drift
+
+dbt seed      # load synthetic data
+dbt run       # build models
+dbt test      # run schema tests
 ```
 
-### Snowflake Worksheet
-Open either SQL file and run directly — dates auto-compute from `CURRENT_DATE`.
+## Project structure
 
----
-
-## Automate with Snowflake Tasks
-
-```sql
--- Slabs — runs weekdays at 6am CT
-CREATE OR REPLACE TASK cambria_metric_drift_slabs_daily
-  WAREHOUSE = COMPUTE_WH
-  SCHEDULE  = 'USING CRON 0 6 * * 1-5 America/Chicago'
-AS
-EXECUTE IMMEDIATE $$
-  -- paste metric_drift_slabs.sql contents here
-$$;
-
--- Fab — same schedule
-CREATE OR REPLACE TASK cambria_metric_drift_fab_daily
-  WAREHOUSE = COMPUTE_WH
-  SCHEDULE  = 'USING CRON 0 6 * * 1-5 America/Chicago'
-AS
-EXECUTE IMMEDIATE $$
-  -- paste metric_drift_fab.sql contents here
-$$;
-
-ALTER TASK cambria_metric_drift_slabs_daily RESUME;
-ALTER TASK cambria_metric_drift_fab_daily   RESUME;
 ```
-
-> **Tip:** Insert results into a log table first, then alert on it:
-> ```sql
-> INSERT INTO CAMBRIA_DB.GOLD.DRIFT_LOG
-> SELECT CURRENT_DATE AS run_date, 'SLABS' AS source, * FROM ( <slabs query> );
-> ```
-
----
-
-## Order Classification Logic
-
-Both files mirror the exact classification logic from `volume_report_daily_materialized`:
-
-1. If `"OrderJobClassification"` contains `'Commercial'` → Commercial
-2. If `"OrderJobClassification"` contains `'Residential'` → Residential
-3. If neither, fall back to `"Trade Type"` from `ACCOUNTS_NIGHTLY`
-4. Otherwise → unclassified (excluded from Commercial/Residential splits)
+models/
+  staging/       stg_daily_metrics        — clean seed data
+  intermediate/  int_metric_rolling_stats  — 14-day rolling stats + z-score
+  marts/         fct_metric_drift          — drift classification + alerts
+seeds/
+  raw_daily_metrics.csv                    — 90 days × 3 metrics (synthetic)
+```
