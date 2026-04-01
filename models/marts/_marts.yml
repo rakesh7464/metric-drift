@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: fct_metric_drift
+    description: >
+      Fact table of daily metric drift alerts. Each row is a
+      metric/segment/date with a z-score-based severity classification
+      and percentage deviation from the rolling average.
+    columns:
+      - name: drift_severity
+        description: "critical (|z| >= 3), warning (|z| >= 2), watch (|z| >= 1.5), normal"
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['critical', 'warning', 'watch', 'normal']
+      - name: is_drift_alert
+        description: True when drift_severity is not normal.
+        tests:
+          - not_null

@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: stg_daily_metrics
+    description: Cleaned daily metric observations with date attributes.
+    columns:
+      - name: metric_date
+        tests:
+          - not_null
+      - name: metric_name
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['revenue', 'conversion_rate', 'active_users']
+      - name: metric_value
+        tests:
+          - not_null

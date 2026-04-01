@@ -1,0 +1,13 @@
+version: 2
+
+models:
+  - name: int_metric_rolling_stats
+    description: >
+      Rolling 14-day average, standard deviation, and z-score for each
+      metric/segment combination. Z-scores are only calculated once
+      at least 7 days of history are available.
+    columns:
+      - name: z_score
+        description: >
+          How many standard deviations the current value is from the
+          rolling 14-day mean. Positive = above average, negative = below.
