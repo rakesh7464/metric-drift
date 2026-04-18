@@ -52,5 +52,35 @@ jobs:
       - name: dbt run
         run: dbt run
 
+      - name: Assign DMFs (CI schema)
+        run: |
+          python - <<'EOF'
+          import snowflake.connector, os
+
+          conn = snowflake.connector.connect(
+              account='parwfuh-btb55676',
+              user='rakpatel',
+              password=os.environ['SNOWFLAKE_PASSWORD'],
+              role='ACCOUNTADMIN',
+              database='METRIC_DRIFT',
+              warehouse='COMPUTE_WH'
+          )
+          cur = conn.cursor()
+          with open('dmf/09_assign_dmfs_ci.sql') as f:
+              for stmt in f.read().split(';'):
+                  stmt = stmt.strip()
+                  if stmt:
+                      try:
+                          cur.execute(stmt)
+                      except Exception as e:
+                          # Re-assignment of existing DMF is a non-fatal error
+                          if 'already exists' in str(e).lower() or 'duplicate' in str(e).lower():
+                              pass
+                          else:
+                              raise
+          conn.close()
+          print("DMF assignment complete")
+          EOF
+
       - name: dbt test
         run: dbt test

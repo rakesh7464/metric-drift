@@ -41,3 +41,42 @@ models:
         description: LLM-generated explanation of the drift event.
         tests:
           - not_null
+
+  - name: fct_dmf_quality_log
+    description: >
+      Unified quality monitoring log from Snowflake Data Metric Functions (DMFs).
+      Each row is one DMF measurement — system checks (NULL_COUNT, DUPLICATE_COUNT,
+      FRESHNESS, ROW_COUNT, MIN, MAX) and custom checks (cardinality, value ranges,
+      volume anomaly, distribution drift, business rules, partition completeness) —
+      evaluated continuously against the seed and mart tables. Complements dbt tests
+      with ongoing, post-build monitoring. Reads from
+      SNOWFLAKE.LOCAL.DATA_QUALITY_MONITORING_RESULTS; no dbt lineage tracked for
+      this model. Builds as an empty table if DMFs have not yet been assigned.
+    columns:
+      - name: measured_at
+        description: Timestamp when the DMF evaluated.
+        tests:
+          - not_null
+      - name: table_name
+        description: Snowflake table the DMF ran against.
+        tests:
+          - not_null
+      - name: dmf_name
+        description: Fully-qualified DMF name (e.g. SNOWFLAKE.CORE.NULL_COUNT).
+        tests:
+          - not_null
+      - name: dmf_value
+        description: Numeric result returned by the DMF.
+        tests:
+          - not_null
+      - name: quality_status
+        description: "fail, warn, or pass based on per-DMF threshold logic."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['fail', 'warn', 'pass']
+      - name: quality_note
+        description: Human-readable explanation of the DMF result.
+        tests:
+          - not_null

@@ -12,7 +12,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['revenue', 'conversion_rate', 'active_users']
+                values: ['revenue', 'conversion_rate', 'active_users', 'sessions']
       - name: metric_value
         tests:
           - not_null
