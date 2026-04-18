@@ -22,7 +22,7 @@ dbt project that detects when business metrics drift from expected ranges using 
 
 ## CI
 - GitHub Actions workflow in `.github/workflows/dbt-ci.yml`
-- Runs on push/PR to main: dbt debug → seed → run → test
+- Runs on push/PR to main: dbt debug → seed → run → DMF assignment → test
 - Snowflake password stored as GitHub secret `SNOWFLAKE_PASSWORD`
 
 ## Models
@@ -38,7 +38,7 @@ dbt project that detects when business metrics drift from expected ranges using 
 - Deliberate violations injected: negative revenue (2026-03-05), conversion_rate=1.15 (2026-03-01 product), active_users=0 (2026-03-10), metric_name="sessions" (2 rows), 5-day date gap (2026-03-15 to 2026-03-19)
 
 ## DMF Layer
-- SQL files in `dmf/` define 10 Data Metric Functions (8 custom + 2 categories of system DMFs)
+- SQL files in `dmf/` define 15 Data Metric Functions (9 custom + 6 system DMFs)
 - Coverage: cardinality, value ranges, volume anomaly, distribution drift, business rules, z-score readiness, partition completeness, NULL/duplicate/freshness/row count
 - Run `dmf/08_assign_dmfs_dev.sql` once in Snowflake after `dbt seed` + `dbt run`
 - CI assigns DMFs automatically via `dmf/09_assign_dmfs_ci.sql` (GitHub Actions step after dbt run)
