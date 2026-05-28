@@ -115,6 +115,9 @@ def _load_data(use_mock: bool):
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = 0
+
 with st.sidebar:
     st.html("""
         <div style="margin-bottom:1.5rem">
@@ -126,6 +129,20 @@ with st.sidebar:
             </div>
         </div>""")
 
+    st.markdown("**Navigation**")
+    nav_labels = ["Overview", "DMF Checks", "Drift Alerts", "Historical Trend"]
+    for i, label in enumerate(nav_labels):
+        is_active = st.session_state.active_tab == i
+        if st.button(
+            label,
+            key=f"nav_{i}",
+            use_container_width=True,
+            type="primary" if is_active else "secondary",
+        ):
+            st.session_state.active_tab = i
+            st.rerun()
+
+    st.markdown("---")
     st.markdown("**Data Source**")
     use_mock = st.toggle("Use mock data", value=True, help="Toggle off to connect to Snowflake via secrets.toml")
 
@@ -219,8 +236,11 @@ tab_overview, tab_checks, tab_drift, tab_history = st.tabs([
     "Historical Trend",
 ])
 
+# Sync tab widget state with session_state
+tab_map = {0: tab_overview, 1: tab_checks, 2: tab_drift, 3: tab_history}
+
 with tab_overview:
-    render_overview(dmf_df, drift_df, alerts_df)
+    render_overview(dmf_df, drift_df, alerts_df, filters)
 
 with tab_checks:
     render_dmf_checks(dmf_df, filters)
@@ -230,3 +250,14 @@ with tab_drift:
 
 with tab_history:
     render_historical(dmf_df, drift_df, filters)
+
+# Inject JS to switch to the active tab when nav button is clicked
+active = st.session_state.active_tab
+if active > 0:
+    st.markdown(
+        f"""<script>
+        const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
+        if (tabs.length > {active}) {{ tabs[{active}].click(); }}
+        </script>""",
+        unsafe_allow_html=True,
+    )

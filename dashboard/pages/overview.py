@@ -9,12 +9,26 @@ from utils.health_score import compute_health_score, compute_score_history
 from utils.formatting import GRADE_COLORS, short_dmf_name, STATUS_COLORS, severity_color
 
 
-def render(dmf_df: pd.DataFrame, drift_df: pd.DataFrame, alerts_df: pd.DataFrame):
+def render(dmf_df: pd.DataFrame, drift_df: pd.DataFrame, alerts_df: pd.DataFrame, filters: dict = {}):
     st.markdown("## Overview")
     st.markdown(
         "Real-time health summary of the metric-drift data quality stack — "
         "DMF checks, drift alerts, and pipeline status at a glance."
     )
+
+    # Apply date filter
+    if filters.get("date_range"):
+        start, end = filters["date_range"]
+        if not dmf_df.empty:
+            dmf_df = dmf_df[
+                (dmf_df["measured_at"].dt.date >= start) &
+                (dmf_df["measured_at"].dt.date <= end)
+            ]
+        if not alerts_df.empty:
+            alerts_df = alerts_df[
+                (alerts_df["metric_date"].dt.date >= start) &
+                (alerts_df["metric_date"].dt.date <= end)
+            ]
 
     health = compute_health_score(dmf_df)
     score_history = compute_score_history(dmf_df)
