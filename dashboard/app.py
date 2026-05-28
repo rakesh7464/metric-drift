@@ -14,53 +14,26 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── CSS overrides for a clean, modern feel ────────────────────────────────────
 st.markdown("""
 <style>
-    /* Sidebar */
     [data-testid="stSidebar"] {
         background: #F5F5F0;
         border-right: 1px solid #E2E8F0;
     }
     [data-testid="stSidebar"] .block-container { padding-top: 1.5rem; }
-
-    /* Remove default top padding */
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-        border-bottom: 2px solid #E2E8F0;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        border-radius: 6px 6px 0 0;
-        padding: 8px 20px;
-        font-weight: 500;
-        color: #718096;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #FFFFFF;
-        color: #D97757;
-        border-bottom: 2px solid #D97757;
-    }
-
-    /* Metric cards */
-    [data-testid="metric-container"] {
-        background: #F5F5F0;
-        border-radius: 8px;
-        padding: 12px;
-    }
-
-    /* Divider */
     hr { border-color: #E2E8F0; margin: 1.5rem 0; }
-
-    /* Selectbox / number input */
-    [data-testid="stSelectbox"] > div, [data-testid="stNumberInput"] > div {
+    [data-testid="stSelectbox"] > div,
+    [data-testid="stNumberInput"] > div { border-radius: 6px; }
+    /* Style the radio nav to look like a menu */
+    [data-testid="stSidebar"] .stRadio > div { gap: 2px; }
+    [data-testid="stSidebar"] .stRadio label {
+        padding: 8px 12px;
         border-radius: 6px;
+        width: 100%;
+        cursor: pointer;
     }
-
-
+    [data-testid="stSidebar"] .stRadio label:hover { background: #EAEAE4; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -115,12 +88,9 @@ def _load_data(use_mock: bool):
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
-if "active_tab" not in st.session_state:
-    st.session_state.active_tab = 0
-
 with st.sidebar:
     st.html("""
-        <div style="margin-bottom:1.5rem">
+        <div style="margin-bottom:1.2rem">
             <div style="font-size:1.1rem;font-weight:700;color:#1A1A1A;letter-spacing:-0.01em">
                 ◈ Metric Drift
             </div>
@@ -129,28 +99,24 @@ with st.sidebar:
             </div>
         </div>""")
 
-    st.markdown("**Navigation**")
-    nav_labels = ["Overview", "DMF Checks", "Drift Alerts", "Historical Trend"]
-    for i, label in enumerate(nav_labels):
-        is_active = st.session_state.active_tab == i
-        if st.button(
-            label,
-            key=f"nav_{i}",
-            use_container_width=True,
-            type="primary" if is_active else "secondary",
-        ):
-            st.session_state.active_tab = i
-            st.rerun()
+    page = st.radio(
+        "Navigation",
+        options=["Overview", "DMF Checks", "Drift Alerts", "Historical Trend", "Check Glossary"],
+        label_visibility="collapsed",
+    )
 
     st.markdown("---")
     st.markdown("**Data Source**")
-    use_mock = st.toggle("Use mock data", value=True, help="Toggle off to connect to Snowflake via secrets.toml")
+    use_mock = st.toggle(
+        "Use mock data",
+        value=True,
+        help="Toggle off to connect to Snowflake via secrets.toml",
+    )
 
     st.markdown("---")
     st.markdown("**Filters**")
 
-    # Date range
-    default_end = date(2026, 4, 18)
+    default_end   = date(2026, 4, 18)
     default_start = default_end - timedelta(days=29)
     date_range = st.date_input(
         "Date range",
@@ -162,23 +128,9 @@ with st.sidebar:
     else:
         date_start, date_end = default_start, default_end
 
-    # Severity filter
-    severity_filter = st.selectbox(
-        "Drift severity",
-        options=["All", "Critical", "Warning", "Watch"],
-    )
-
-    # Check type filter
-    check_type_filter = st.selectbox(
-        "Check type",
-        options=["All", "Custom", "System"],
-    )
-
-    # Status filter
-    status_filter = st.selectbox(
-        "Check status",
-        options=["All", "Fail", "Warn", "Pass"],
-    )
+    severity_filter   = st.selectbox("Drift severity",  ["All", "Critical", "Warning", "Watch"])
+    check_type_filter = st.selectbox("Check type",       ["All", "Custom", "System"])
+    status_filter     = st.selectbox("Check status",     ["All", "Fail", "Warn", "Pass"])
 
     st.markdown("---")
 
@@ -222,42 +174,21 @@ else:
     )
 
 
-# ── Page tabs ─────────────────────────────────────────────────────────────────
+# ── Page routing ──────────────────────────────────────────────────────────────
 
-from pages.overview import render as render_overview
-from pages.dmf_checks import render as render_dmf_checks
-from pages.drift_alerts import render as render_drift_alerts
+from pages.overview        import render as render_overview
+from pages.dmf_checks      import render as render_dmf_checks
+from pages.drift_alerts    import render as render_drift_alerts
 from pages.historical_trend import render as render_historical
+from pages.check_glossary  import render as render_glossary
 
-tab_overview, tab_checks, tab_drift, tab_history = st.tabs([
-    "Overview",
-    "DMF Checks",
-    "Drift Alerts",
-    "Historical Trend",
-])
-
-# Sync tab widget state with session_state
-tab_map = {0: tab_overview, 1: tab_checks, 2: tab_drift, 3: tab_history}
-
-with tab_overview:
+if page == "Overview":
     render_overview(dmf_df, drift_df, alerts_df, filters)
-
-with tab_checks:
+elif page == "DMF Checks":
     render_dmf_checks(dmf_df, filters)
-
-with tab_drift:
+elif page == "Drift Alerts":
     render_drift_alerts(drift_df, alerts_df, insights_df, filters)
-
-with tab_history:
+elif page == "Historical Trend":
     render_historical(dmf_df, drift_df, filters)
-
-# Inject JS to switch to the active tab when nav button is clicked
-active = st.session_state.active_tab
-if active > 0:
-    st.markdown(
-        f"""<script>
-        const tabs = window.parent.document.querySelectorAll('[data-baseweb="tab"]');
-        if (tabs.length > {active}) {{ tabs[{active}].click(); }}
-        </script>""",
-        unsafe_allow_html=True,
-    )
+elif page == "Check Glossary":
+    render_glossary()
