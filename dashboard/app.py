@@ -93,9 +93,18 @@ def _load_data(use_mock: bool):
             )
 
 
-# ── Sidebar — filters only ────────────────────────────────────────────────────
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
+    st.markdown("**Navigate**")
+    st.radio(
+        "Navigate",
+        options=["Overview", "DMF Checks", "Drift Alerts", "Historical Trend", "Check Glossary"],
+        label_visibility="collapsed",
+        key="sidebar_nav",
+    )
+
+    st.markdown("---")
     st.markdown("**Data Source**")
     use_mock = st.toggle(
         "Use mock data",
