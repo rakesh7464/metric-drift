@@ -21,6 +21,9 @@ st.markdown("""
         border-right: 1px solid #E2E8F0;
     }
     [data-testid="stSidebar"] .block-container { padding-top: 1.5rem; }
+    /* Hide the default Streamlit sidebar top decoration (app name + deploy button) */
+    [data-testid="stSidebarHeader"] { display: none; }
+    [data-testid="collapsedControl"] { display: none; }
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
     hr { border-color: #E2E8F0; margin: 1.5rem 0; }
     .stTabs [data-baseweb="tab-list"] {
