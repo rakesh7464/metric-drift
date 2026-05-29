@@ -2,6 +2,8 @@
 
 dbt project that detects when business metrics drift from expected ranges using z-score analysis on rolling windows.
 
+**[→ Live Dashboard](https://metric-drift-55cvpwqckz9etwrftxjuza.streamlit.app/)** — health monitoring app for the DMF quality layer. No login required.
+
 ## How it works
 
 Synthetic daily metrics flow through three dbt layers:
