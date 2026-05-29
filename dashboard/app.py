@@ -23,17 +23,24 @@ st.markdown("""
     [data-testid="stSidebar"] .block-container { padding-top: 1.5rem; }
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
     hr { border-color: #E2E8F0; margin: 1.5rem 0; }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        border-bottom: 2px solid #E2E8F0;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        border-radius: 6px 6px 0 0;
+        padding: 8px 20px;
+        font-weight: 500;
+        color: #718096;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #FFFFFF;
+        color: #D97757;
+        border-bottom: 2px solid #D97757;
+    }
     [data-testid="stSelectbox"] > div,
     [data-testid="stNumberInput"] > div { border-radius: 6px; }
-    /* Style the radio nav to look like a menu */
-    [data-testid="stSidebar"] .stRadio > div { gap: 2px; }
-    [data-testid="stSidebar"] .stRadio label {
-        padding: 8px 12px;
-        border-radius: 6px;
-        width: 100%;
-        cursor: pointer;
-    }
-    [data-testid="stSidebar"] .stRadio label:hover { background: #EAEAE4; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,16 +93,9 @@ def _load_data(use_mock: bool):
             )
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Sidebar — filters only ────────────────────────────────────────────────────
 
 with st.sidebar:
-    page = st.radio(
-        "Navigation",
-        options=["Overview", "DMF Checks", "Drift Alerts", "Historical Trend", "Check Glossary"],
-        label_visibility="collapsed",
-    )
-
-    st.markdown("---")
     st.markdown("**Data Source**")
     use_mock = st.toggle(
         "Use mock data",
@@ -164,21 +164,33 @@ else:
     )
 
 
-# ── Page routing ──────────────────────────────────────────────────────────────
+# ── Tabs ──────────────────────────────────────────────────────────────────────
 
-from pages.overview        import render as render_overview
-from pages.dmf_checks      import render as render_dmf_checks
-from pages.drift_alerts    import render as render_drift_alerts
+from pages.overview         import render as render_overview
+from pages.dmf_checks       import render as render_dmf_checks
+from pages.drift_alerts     import render as render_drift_alerts
 from pages.historical_trend import render as render_historical
-from pages.check_glossary  import render as render_glossary
+from pages.check_glossary   import render as render_glossary
 
-if page == "Overview":
+tab_overview, tab_checks, tab_drift, tab_history, tab_glossary = st.tabs([
+    "Overview",
+    "DMF Checks",
+    "Drift Alerts",
+    "Historical Trend",
+    "Check Glossary",
+])
+
+with tab_overview:
     render_overview(dmf_df, drift_df, alerts_df, filters)
-elif page == "DMF Checks":
+
+with tab_checks:
     render_dmf_checks(dmf_df, filters)
-elif page == "Drift Alerts":
+
+with tab_drift:
     render_drift_alerts(drift_df, alerts_df, insights_df, filters)
-elif page == "Historical Trend":
+
+with tab_history:
     render_historical(dmf_df, drift_df, filters)
-elif page == "Check Glossary":
+
+with tab_glossary:
     render_glossary()
