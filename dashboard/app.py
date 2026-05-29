@@ -89,16 +89,6 @@ def _load_data(use_mock: bool):
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.html("""
-        <div style="margin-bottom:1.2rem">
-            <div style="font-size:1.1rem;font-weight:700;color:#1A1A1A;letter-spacing:-0.01em">
-                ◈ Metric Drift
-            </div>
-            <div style="font-size:0.75rem;color:#718096;margin-top:2px">
-                Data Quality Monitor
-            </div>
-        </div>""")
-
     page = st.radio(
         "Navigation",
         options=["Overview", "DMF Checks", "Drift Alerts", "Historical Trend", "Check Glossary"],
