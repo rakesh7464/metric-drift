@@ -178,11 +178,11 @@ else:
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 
-from pages.overview         import render as render_overview
-from pages.dmf_checks       import render as render_dmf_checks
-from pages.drift_alerts     import render as render_drift_alerts
-from pages.historical_trend import render as render_historical
-from pages.check_glossary   import render as render_glossary
+from views.overview         import render as render_overview
+from views.dmf_checks       import render as render_dmf_checks
+from views.drift_alerts     import render as render_drift_alerts
+from views.historical_trend import render as render_historical
+from views.check_glossary   import render as render_glossary
 
 tab_overview, tab_checks, tab_drift, tab_history, tab_glossary = st.tabs([
     "Overview",
